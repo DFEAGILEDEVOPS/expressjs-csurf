@@ -1,18 +1,22 @@
-# csurf
+# expressjs-csurf
+Forked from `expressjs/csrf` September 2023
 
-[![NPM Version][npm-version-image]][npm-url]
-[![NPM Downloads][npm-downloads-image]][node-url]
-[![Build status][travis-image]][travis-url]
-[![Test coverage][coveralls-image]][coveralls-url]
+## Security update
+### September 2023
+Following the publication[^1][^2] of a security vulnerability in the original `expressjs/csrf` module this fork attempts 
+to remediate the issues as the upstream package has been archived rather than address them directly.  The remediation 
+itself was to remove the `cookie` option that allowed the use of the 'double-submit-cookie-pattern'[^3] as although the 
+pattern is not at fault, we do not use it so have simply removed it from this repository.
 
-Node.js [CSRF][wikipedia-csrf] protection middleware.
+  [^1]: https://fortbridge.co.uk/research/a-csrf-vulnerability-in-the-popular-csurf-package/
+  [^2]: https://www.veracode.com/blog/research/analysis-and-remediation-guidance-csrf-vulnerability-csurf-expressjs-middleware
+  [^3]: https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html#double-submit-cookie
 
-Requires either a session middleware or [cookie-parser](https://www.npmjs.com/package/cookie-parser) to be initialized first.
+## Node.js [CSRF][wikipedia-csrf] protection middleware.
 
-  * If you are setting the ["cookie" option](#cookie) to a non-`false` value,
-    then you must use [cookie-parser](https://www.npmjs.com/package/cookie-parser)
-    before this module.
-  * Otherwise, you must use a session middleware before this module. For example:
+Requires a session middleware to be initialized first.
+
+  * You must use a session middleware before this module. For example:
     - [express-session](https://www.npmjs.com/package/express-session)
     - [cookie-session](https://www.npmjs.com/package/cookie-session)
 
@@ -49,40 +53,6 @@ This token is validated against the visitor's session or csrf cookie.
 The `csurf` function takes an optional `options` object that may contain
 any of the following keys:
 
-##### cookie
-
-Determines if the token secret for the user should be stored in a cookie
-or in `req.session`. Storing the token secret in a cookie implements
-the [double submit cookie pattern][owsap-csrf-double-submit].
-Defaults to `false`.
-
-When set to `true` (or an object of options for the cookie), then the module
-changes behavior and no longer uses `req.session`. This means you _are no
-longer required to use a session middleware_. Instead, you do need to use the
-[cookie-parser](https://www.npmjs.com/package/cookie-parser) middleware in
-your app before this middleware.
-
-When set to an object, cookie storage of the secret is enabled and the
-object contains options for this functionality (when set to `true`, the
-defaults for the options are used). The options may contain any of the
-following keys:
-
-  - `key` - the name of the cookie to use to store the token secret
-    (defaults to `'_csrf'`).
-  - `path` - the path of the cookie (defaults to `'/'`).
-  - `signed` - indicates if the cookie should be signed (defaults to `false`).
-  - `secure` - marks the cookie to be used with HTTPS only (defaults to
-    `false`).
-  - `maxAge` - the number of seconds after which the cookie will expire
-    (defaults to session length).
-  - `httpOnly` - flags the cookie to be accessible only by the web server
-    (defaults to `false`).
-  - `sameSite` - sets the same site policy for the cookie(defaults to
-    `false`). This can be set to `'strict'`, `'lax'`, `'none'`, or `true`
-    (which maps to `'strict'`).
-  - `domain` - sets the domain the cookie is valid on(defaults to current
-    domain).
-
 ##### ignoreMethods
 
 An array of the methods for which CSRF token checking will disabled.
@@ -93,9 +63,6 @@ Defaults to `['GET', 'HEAD', 'OPTIONS']`.
 Determines what property ("key") on `req` the session object is located.
 Defaults to `'session'` (i.e. looks at `req.session`). The CSRF secret
 from this library is stored and read as `req[sessionKey].csrfSecret`.
-
-If the ["cookie" option](#cookie) is not `false`, then this option does
-nothing.
 
 ##### value
 
@@ -127,16 +94,14 @@ var csrf = require('csurf')
 var bodyParser = require('body-parser')
 var express = require('express')
 
+// ... set up your session handler
+
 // setup route middlewares
-var csrfProtection = csrf({ cookie: true })
+var csrfProtection = csrf()
 var parseForm = bodyParser.urlencoded({ extended: false })
 
 // create express app
 var app = express()
-
-// parse cookies
-// we need this because "cookie" is true in csrfProtection
-app.use(cookieParser())
 
 app.get('/form', csrfProtection, function (req, res) {
   // pass the csrfToken to the view
@@ -253,8 +218,7 @@ app.use('/api', api)
 
 // now add csrf and other middlewares, after the "/api" was mounted
 app.use(bodyParser.urlencoded({ extended: false }))
-app.use(cookieParser())
-app.use(csrf({ cookie: true }))
+app.use(csrf())
 
 app.get('/form', function (req, res) {
   // pass the csrfToken to the view
@@ -284,14 +248,12 @@ error messages.
 
 ```js
 var bodyParser = require('body-parser')
-var cookieParser = require('cookie-parser')
 var csrf = require('csurf')
 var express = require('express')
 
 var app = express()
 app.use(bodyParser.urlencoded({ extended: false }))
-app.use(cookieParser())
-app.use(csrf({ cookie: true }))
+app.use(csrf())
 
 // error handler
 app.use(function (err, req, res, next) {
@@ -315,12 +277,3 @@ app.use(function (err, req, res, next) {
 ## License
 
 [MIT](LICENSE)
-
-[coveralls-image]: https://badgen.net/coveralls/c/github/expressjs/csurf/master
-[coveralls-url]: https://coveralls.io/r/expressjs/csurf?branch=master
-[node-url]: https://nodejs.org/en/download
-[npm-downloads-image]: https://badgen.net/npm/dm/csurf
-[npm-url]: https://npmjs.org/package/csurf
-[npm-version-image]: https://badgen.net/npm/v/csurf
-[travis-image]: https://badgen.net/travis/expressjs/csurf/master
-[travis-url]: https://travis-ci.org/expressjs/csurf
