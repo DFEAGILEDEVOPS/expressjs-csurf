@@ -1,5 +1,5 @@
 # expressjs-csurf
-Forked from `expressjs/csrf` September 2023
+Forked from `expressjs/csurf` September 2023
 
 ## Security update
 ### September 2023
