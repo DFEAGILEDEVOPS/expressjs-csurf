@@ -1,3 +1,8 @@
+2.0.0 / 2023-09-08
+
+  * Forked from `expressjs/csrf`
+  * Security: double-submit-cookie-pattern removed
+
 1.11.0 / 2020-01-18
 ===================
 

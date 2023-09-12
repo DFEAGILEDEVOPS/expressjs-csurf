@@ -3,3 +3,5 @@ node_modules/
 coverage/
 npm-debug.log
 package-lock.json
+/expressjs-csurf.iml
+/.idea/

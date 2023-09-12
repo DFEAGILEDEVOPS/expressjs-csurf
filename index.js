@@ -1,4 +1,5 @@
 /*!
+ * Forked from expressjs/csrf September 2023
  * csurf
  * Copyright(c) 2011 Sencha Inc.
  * Copyright(c) 2014 Jonathan Ong
@@ -12,10 +13,7 @@
  * Module dependencies.
  * @private
  */
-
-var Cookie = require('cookie')
 var createError = require('http-errors')
-var sign = require('cookie-signature').sign
 var Tokens = require('csrf')
 
 /**
@@ -41,9 +39,6 @@ module.exports = csurf
 function csurf (options) {
   var opts = options || {}
 
-  // get cookie options
-  var cookie = getCookieOptions(opts.cookie)
-
   // get session options
   var sessionKey = opts.sessionKey || 'session'
 
@@ -67,19 +62,17 @@ function csurf (options) {
 
   return function csrf (req, res, next) {
     // validate the configuration against request
-    if (!verifyConfiguration(req, sessionKey, cookie)) {
+    if (!verifyConfiguration(req, sessionKey)) {
       return next(new Error('misconfigured csrf'))
     }
 
     // get the secret from the request
-    var secret = getSecret(req, sessionKey, cookie)
+    var secret = getSecret(req, sessionKey)
     var token
 
     // lazy-load token getter
     req.csrfToken = function csrfToken () {
-      var sec = !cookie
-        ? getSecret(req, sessionKey, cookie)
-        : secret
+      var sec = getSecret(req, sessionKey)
 
       // use cached token if secret has not changed
       if (token && sec === secret) {
@@ -89,7 +82,7 @@ function csurf (options) {
       // generate & set new secret
       if (sec === undefined) {
         sec = tokens.secretSync()
-        setSecret(req, res, sessionKey, sec, cookie)
+        setSecret(req, res, sessionKey, sec)
       }
 
       // update changed secret
@@ -104,7 +97,7 @@ function csurf (options) {
     // generate & set secret
     if (!secret) {
       secret = tokens.secretSync()
-      setSecret(req, res, sessionKey, secret, cookie)
+      setSecret(req, res, sessionKey, secret)
     }
 
     // verify the incoming token
@@ -137,38 +130,6 @@ function defaultValue (req) {
 }
 
 /**
- * Get options for cookie.
- *
- * @param {boolean|object} [options]
- * @returns {object}
- * @api private
- */
-
-function getCookieOptions (options) {
-  if (options !== true && typeof options !== 'object') {
-    return undefined
-  }
-
-  var opts = Object.create(null)
-
-  // defaults
-  opts.key = '_csrf'
-  opts.path = '/'
-
-  if (options && typeof options === 'object') {
-    for (var prop in options) {
-      var val = options[prop]
-
-      if (val !== undefined) {
-        opts[prop] = val
-      }
-    }
-  }
-
-  return opts
-}
-
-/**
  * Get a lookup of ignored methods.
  *
  * @param {array} methods
@@ -192,14 +153,13 @@ function getIgnoredMethods (methods) {
  *
  * @param {IncomingMessage} req
  * @param {String} sessionKey
- * @param {Object} [cookie]
  * @api private
  */
 
-function getSecret (req, sessionKey, cookie) {
+function getSecret (req, sessionKey) {
   // get the bag & key
-  var bag = getSecretBag(req, sessionKey, cookie)
-  var key = cookie ? cookie.key : 'csrfSecret'
+  var bag = getSecretBag(req, sessionKey)
+  var key = 'csrfSecret'
 
   if (!bag) {
     throw new Error('misconfigured csrf')
@@ -214,42 +174,12 @@ function getSecret (req, sessionKey, cookie) {
  *
  * @param {IncomingMessage} req
  * @param {String} sessionKey
- * @param {Object} [cookie]
  * @api private
  */
 
-function getSecretBag (req, sessionKey, cookie) {
-  if (cookie) {
-    // get secret from cookie
-    var cookieKey = cookie.signed
-      ? 'signedCookies'
-      : 'cookies'
-
-    return req[cookieKey]
-  } else {
-    // get secret from session
-    return req[sessionKey]
-  }
-}
-
-/**
- * Set a cookie on the HTTP response.
- *
- * @param {OutgoingMessage} res
- * @param {string} name
- * @param {string} val
- * @param {Object} [options]
- * @api private
- */
-
-function setCookie (res, name, val, options) {
-  var data = Cookie.serialize(name, val, options)
-
-  var prev = res.getHeader('set-cookie') || []
-  var header = Array.isArray(prev) ? prev.concat(data)
-    : [prev, data]
-
-  res.setHeader('set-cookie', header)
+function getSecretBag (req, sessionKey) {
+  // get secret from session
+  return req[sessionKey]
 }
 
 /**
@@ -259,24 +189,12 @@ function setCookie (res, name, val, options) {
  * @param {OutgoingMessage} res
  * @param {string} sessionKey
  * @param {string} val
- * @param {Object} [cookie]
  * @api private
  */
 
-function setSecret (req, res, sessionKey, val, cookie) {
-  if (cookie) {
-    // set secret on cookie
-    var value = val
-
-    if (cookie.signed) {
-      value = 's:' + sign(val, req.secret)
-    }
-
-    setCookie(res, cookie.key, value, cookie)
-  } else {
-    // set secret on session
-    req[sessionKey].csrfSecret = val
-  }
+function setSecret (req, res, sessionKey, val) {
+  // set secret on session
+  req[sessionKey].csrfSecret = val
 }
 
 /**
@@ -284,12 +202,8 @@ function setSecret (req, res, sessionKey, val, cookie) {
  * @private
  */
 
-function verifyConfiguration (req, sessionKey, cookie) {
-  if (!getSecretBag(req, sessionKey, cookie)) {
-    return false
-  }
-
-  if (cookie && cookie.signed && !req.secret) {
+function verifyConfiguration (req, sessionKey) {
+  if (!getSecretBag(req, sessionKey)) {
     return false
   }
 
